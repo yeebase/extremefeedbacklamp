@@ -31,6 +31,8 @@ SIREN_NEXT_STATE = 'setOff'
 SOUNDEFFECT_NEXT_STATE = 'setOff'
 STATE_CHANGE_LOCK = threading.Lock()
 
+SOUNDFILE = ''
+
 button_last_state = 'siren'
 
 # where to listen
@@ -276,7 +278,7 @@ def siren_state_machine():
     sfsm.add_transition      ('setOff', 'SIRENOFF', siren_off, 'SIRENOFF')
 
     # siren test & initial off state
-    sfsm.process('setOn')
+    #sfsm.process('setOn')
     sfsm.process('setOff')
 
     # eventloop
@@ -452,6 +454,7 @@ def netloop():
     global NEXT_STATE
     global SIREN_NEXT_STATE
     global SOUNDEFFECT_NEXT_STATE
+    global SOUNDFILE
     global LCD
     my_next_state = 'setOff'
     my_next_siren_state = 'setOff'
@@ -485,6 +488,10 @@ def netloop():
                     STATE_CHANGE_LOCK.release()
                 my_next_siren_state = 'setOff'
 
+            if ('soundfile' in data and data['soundfile']  ):
+                logging.debug(data['soundfile']) 
+                SOUNDFILE = data['soundfile'] + '.mp3'
+                
             if ( 'soundeffect' in data and
                  'color' in data and
                  data['color'] in ['RED', 'GREEN', 'YELLOW']
@@ -571,6 +578,7 @@ def netloop():
 def soundeffectsloop():
     """Soundeffects playback handler"""
     global SOUNDEFFECT_NEXT_STATE
+    global SOUNDFILE
     my_soundeffect_next_state = 'setOff'
     while(1):
         STATE_CHANGE_LOCK.acquire()
@@ -597,7 +605,13 @@ def soundeffectsloop():
                     files.remove('.gitignore')
                 except ValueError:
                     pass
-                fullpathrandomtrack = os.path.join(playfolder, random.choice(files))
+                
+                if SOUNDFILE:
+                    fullpathrandomtrack = os.path.join(playfolder, SOUNDFILE)
+                else:
+                    fullpathrandomtrack = os.path.join(playfolder, random.choice(files))
+                    
+                logging.debug("Soundpath: " + fullpathrandomtrack)
                 retcode = subprocess.call(["mpg321", "--quiet", fullpathrandomtrack], shell=False, stdout=fhdevnull, stderr=fhdevnull)
                 fhdevnull.close()
             except Exception, msg:
